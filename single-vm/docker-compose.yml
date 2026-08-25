@@ -74,7 +74,7 @@ services:
     env_file: .env
 
   phish:
-    image: ${GOPHISH_IMAGE}
+    image: ${PHISH_IMAGE}
     container_name: cyberwise-phish
     restart: unless-stopped
     environment:
