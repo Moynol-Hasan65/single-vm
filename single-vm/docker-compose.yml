@@ -78,8 +78,8 @@ services:
     container_name: cyberwise-phish
     restart: unless-stopped
     environment:
-      GOPHISH_INITIAL_ADMIN_API_TOKEN: 8v8UY9cVDBhWLdmrwfqH1B97MLM2n8R5i2YxZqi9GprYHCQBe9RCI01FO4rODC3k
-      GOPHISH_INITIAL_ADMIN_PASSWORD: Admin#1234
+      GOPHISH_INITIAL_ADMIN_API_TOKEN: ${GO_PHISH_TOKEN}
+      GOPHISH_INITIAL_ADMIN_PASSWORD: ${GOPHISH_ADMIN_PASSWORD:-}
     depends_on:
       mysql:
         condition: service_healthy
