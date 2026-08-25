@@ -19,7 +19,8 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
@@ -37,7 +38,6 @@ services:
       - "3000:3000"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - user
       - lms
@@ -78,8 +78,8 @@ services:
     container_name: cyberwise-phish
     restart: unless-stopped
     environment:
-      GOPHISH_INITIAL_ADMIN_API_TOKEN: ${GO_PHISH_TOKEN}
-      GOPHISH_INITIAL_ADMIN_PASSWORD: ${GOPHISH_ADMIN_PASSWORD:-}
+      GOPHISH_INITIAL_ADMIN_API_TOKEN: 8v8UY9cVDBhWLdmrwfqH1B97MLM2n8R5i2YxZqi9GprYHCQBe9RCI01FO4rODC3k
+      GOPHISH_INITIAL_ADMIN_PASSWORD: Admin#1234
     depends_on:
       mysql:
         condition: service_healthy
