@@ -9,11 +9,55 @@ if ! command -v docker &>/dev/null; then
 fi
 
 if [[ ! -f .env ]]; then
-    echo "ERROR: .env not found."
-    echo "  cp .env.example .env"
-    echo "  nano .env   # fill in real values"
-    echo "  ./deploy.sh"
-    exit 1
+    if [[ ! -f .env.example ]]; then
+        echo "ERROR: .env.example not found."
+        exit 1
+    fi
+
+    echo "No .env found — running first-time setup."
+    cp .env.example .env
+
+    read -rp "Enter this VM's IP or domain (HOST_IP): " HOST_IP_INPUT
+    if [[ -z "$HOST_IP_INPUT" ]]; then
+        echo "ERROR: VM IP cannot be empty."
+        rm -f .env
+        exit 1
+    fi
+
+    if ! command -v openssl &>/dev/null; then
+        echo "ERROR: openssl not found (needed to generate secrets)."
+        rm -f .env
+        exit 1
+    fi
+
+    echo "Generating secrets..."
+    JWT_SECRET_VAL=$(openssl rand -hex 32)
+    APPLICATION_SECRET_VAL=$(openssl rand -hex 32)
+    LICENSE_SECRET_VAL=$(openssl rand -hex 32)
+    GO_PHISH_TOKEN_VAL=$(openssl rand -hex 32)
+    GOPHISH_WEBHOOK_SECRET_VAL=$(openssl rand -hex 32)
+
+    sed -i \
+        -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
+        -e "s|^APPLICATION_SECRET=.*|APPLICATION_SECRET=${APPLICATION_SECRET_VAL}|" \
+        -e "s|^LICENSE_SECRET=.*|LICENSE_SECRET=${LICENSE_SECRET_VAL}|" \
+        -e "s|^GO_PHISH_TOKEN=.*|GO_PHISH_TOKEN=${GO_PHISH_TOKEN_VAL}|" \
+        -e "s|^GOPHISH_WEBHOOK_SECRET=.*|GOPHISH_WEBHOOK_SECRET=${GOPHISH_WEBHOOK_SECRET_VAL}|" \
+        .env
+
+    # Lands HOST_IP_INPUT into HOST_IP, MAIL_REGISTRATION_URL,
+    # MAIL_FORGET_PASSWORD_URL, MAIL_LOGIN_URL, NEXT_PUBLIC_LANDING_PAGE_URL,
+    # and LOCAL_URL in one pass — all share these two placeholders.
+    # API_URL intentionally uses a different placeholder (cyberwise-user) and
+    # is untouched by this substitution.
+    sed -i \
+        -e "s|192\.168\.1\.100|${HOST_IP_INPUT}|g" \
+        -e "s|192\.168\.1\.y|${HOST_IP_INPUT}|g" \
+        .env
+
+    echo "✓ .env created — HOST_IP=${HOST_IP_INPUT}, 5 secrets generated."
+    echo "  Review the remaining placeholders in .env before continuing if needed:"
+    echo "  MySQL/MinIO/Gophish-admin passwords, SUPER_ADMIN_*, SMTP (MAIL_*) creds."
 fi
 
 if ! command -v envsubst &>/dev/null; then
