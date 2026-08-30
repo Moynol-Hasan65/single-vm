@@ -53,6 +53,7 @@ if [[ ! -f .env ]]; then
     MYSQL_PASSWORD_VAL=$(gen_password)
     MINIO_ROOT_PASSWORD_VAL=$(gen_password)
     SUPER_ADMIN_PASSWORD_VAL=$(gen_password)
+    GOPHISH_ADMIN_PASSWORD_VAL=$(gen_password)
 
     sed -i \
         -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
@@ -65,6 +66,7 @@ if [[ ! -f .env ]]; then
         -e "s|^DATABASE_PASSWORD=.*|DATABASE_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
         -e "s|^MINIO_ROOT_PASSWORD=.*|MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD_VAL}|" \
         -e "s|^SUPER_ADMIN_PASSWORD=.*|SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD_VAL}|" \
+        -e "s|^GOPHISH_ADMIN_PASSWORD=.*|GOPHISH_ADMIN_PASSWORD=${GOPHISH_ADMIN_PASSWORD_VAL}|" \
         .env
 
     # Lands HOST_IP_INPUT into MAIL_REGISTRATION_URL, MAIL_FORGET_PASSWORD_URL,
@@ -78,10 +80,11 @@ if [[ ! -f .env ]]; then
 
     SUPER_ADMIN_EMAIL_VAL=$(grep '^SUPER_ADMIN_EMAIL=' .env | cut -d= -f2-)
 
-    echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 5 secrets + 4 passwords generated."
-    echo "  Super Admin login: ${SUPER_ADMIN_EMAIL_VAL} / ${SUPER_ADMIN_PASSWORD_VAL}"
+    echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 5 secrets + 5 passwords generated."
+    echo "  Super Admin login:  ${SUPER_ADMIN_EMAIL_VAL} / ${SUPER_ADMIN_PASSWORD_VAL}"
+    echo "  Gophish admin login: admin / ${GOPHISH_ADMIN_PASSWORD_VAL}"
     echo "  Review the remaining placeholders in .env before continuing if needed:"
-    echo "  GOPHISH_ADMIN_PASSWORD, SMTP (MAIL_*) creds."
+    echo "  SMTP (MAIL_*) creds."
 fi
 
 if ! command -v envsubst &>/dev/null; then
