@@ -24,18 +24,22 @@ if [[ ! -f .env ]]; then
         exit 1
     fi
 
-    if ! command -v openssl &>/dev/null; then
-        echo "ERROR: openssl not found (needed to generate secrets)."
-        rm -f .env
-        exit 1
-    fi
+    gen_secret() {
+        if command -v openssl &>/dev/null; then
+            openssl rand -hex 32
+        elif command -v xxd &>/dev/null; then
+            head -c 32 /dev/urandom | xxd -p -c 256
+        else
+            head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
+        fi
+    }
 
     echo "Generating secrets..."
-    JWT_SECRET_VAL=$(openssl rand -hex 32)
-    APPLICATION_SECRET_VAL=$(openssl rand -hex 32)
-    LICENSE_SECRET_VAL=$(openssl rand -hex 32)
-    GO_PHISH_TOKEN_VAL=$(openssl rand -hex 32)
-    GOPHISH_WEBHOOK_SECRET_VAL=$(openssl rand -hex 32)
+    JWT_SECRET_VAL=$(gen_secret)
+    APPLICATION_SECRET_VAL=$(gen_secret)
+    LICENSE_SECRET_VAL=$(gen_secret)
+    GO_PHISH_TOKEN_VAL=$(gen_secret)
+    GOPHISH_WEBHOOK_SECRET_VAL=$(gen_secret)
 
     sed -i \
         -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
