@@ -17,7 +17,7 @@ if [[ ! -f .env ]]; then
     echo "No .env found — running first-time setup."
     cp .env.example .env
 
-    read -rp "Enter this VM's IP or domain (HOST_IP): " HOST_IP_INPUT
+    read -rp "Enter this VM's IP or domain: " HOST_IP_INPUT
     if [[ -z "$HOST_IP_INPUT" ]]; then
         echo "ERROR: VM IP cannot be empty."
         rm -f .env
@@ -34,6 +34,13 @@ if [[ ! -f .env ]]; then
         fi
     }
 
+    gen_password() {
+        # head closes the pipe as soon as it has 10 bytes, so tr gets SIGPIPE
+        # (exit 141) — harmless, but pipefail+set -e would otherwise abort
+        # the script on it. Scoped to a subshell so pipefail stays on globally.
+        ( set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 10 )
+    }
+
     echo "Generating secrets..."
     JWT_SECRET_VAL=$(gen_secret)
     APPLICATION_SECRET_VAL=$(gen_secret)
@@ -41,27 +48,40 @@ if [[ ! -f .env ]]; then
     GO_PHISH_TOKEN_VAL=$(gen_secret)
     GOPHISH_WEBHOOK_SECRET_VAL=$(gen_secret)
 
+    echo "Generating passwords..."
+    MYSQL_ROOT_PASSWORD_VAL=$(gen_password)
+    MYSQL_PASSWORD_VAL=$(gen_password)
+    MINIO_ROOT_PASSWORD_VAL=$(gen_password)
+    SUPER_ADMIN_PASSWORD_VAL=$(gen_password)
+
     sed -i \
         -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
         -e "s|^APPLICATION_SECRET=.*|APPLICATION_SECRET=${APPLICATION_SECRET_VAL}|" \
         -e "s|^LICENSE_SECRET=.*|LICENSE_SECRET=${LICENSE_SECRET_VAL}|" \
         -e "s|^GO_PHISH_TOKEN=.*|GO_PHISH_TOKEN=${GO_PHISH_TOKEN_VAL}|" \
         -e "s|^GOPHISH_WEBHOOK_SECRET=.*|GOPHISH_WEBHOOK_SECRET=${GOPHISH_WEBHOOK_SECRET_VAL}|" \
+        -e "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD_VAL}|" \
+        -e "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
+        -e "s|^DATABASE_PASSWORD=.*|DATABASE_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
+        -e "s|^MINIO_ROOT_PASSWORD=.*|MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD_VAL}|" \
+        -e "s|^SUPER_ADMIN_PASSWORD=.*|SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD_VAL}|" \
         .env
 
-    # Lands HOST_IP_INPUT into HOST_IP, MAIL_REGISTRATION_URL,
-    # MAIL_FORGET_PASSWORD_URL, MAIL_LOGIN_URL, NEXT_PUBLIC_LANDING_PAGE_URL,
-    # and LOCAL_URL in one pass — all share these two placeholders.
-    # API_URL intentionally uses a different placeholder (cyberwise-user) and
-    # is untouched by this substitution.
+    # Lands HOST_IP_INPUT into MAIL_REGISTRATION_URL, MAIL_FORGET_PASSWORD_URL,
+    # MAIL_LOGIN_URL, NEXT_PUBLIC_LANDING_PAGE_URL, and LOCAL_URL in one pass —
+    # all share these two placeholders. API_URL intentionally uses a different
+    # placeholder (cyberwise-user) and is untouched by this substitution.
     sed -i \
         -e "s|192\.168\.1\.100|${HOST_IP_INPUT}|g" \
         -e "s|192\.168\.1\.y|${HOST_IP_INPUT}|g" \
         .env
 
-    echo "✓ .env created — HOST_IP=${HOST_IP_INPUT}, 5 secrets generated."
+    SUPER_ADMIN_EMAIL_VAL=$(grep '^SUPER_ADMIN_EMAIL=' .env | cut -d= -f2-)
+
+    echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 5 secrets + 4 passwords generated."
+    echo "  Super Admin login: ${SUPER_ADMIN_EMAIL_VAL} / ${SUPER_ADMIN_PASSWORD_VAL}"
     echo "  Review the remaining placeholders in .env before continuing if needed:"
-    echo "  MySQL/MinIO/Gophish-admin passwords, SUPER_ADMIN_*, SMTP (MAIL_*) creds."
+    echo "  GOPHISH_ADMIN_PASSWORD, SMTP (MAIL_*) creds."
 fi
 
 if ! command -v envsubst &>/dev/null; then
@@ -88,14 +108,18 @@ echo ""
 echo "Starting all services..."
 docker compose up -d
 
+# No standalone HOST_IP var — pull the display IP out of a URL that already
+# has it baked in from the first-run setup above.
+DISPLAY_HOST=$(printf '%s' "${NEXT_PUBLIC_LANDING_PAGE_URL:-}" | sed -E 's#^https?://([^:/]+).*#\1#')
+
 echo ""
 echo "=== Deployment started ==="
-echo "  Web App:        http://${HOST_IP:-localhost}:3000"
-echo "  Gophish Phish:  http://${HOST_IP:-localhost}:3000/landing"
-echo "  User API:       http://${HOST_IP:-localhost}:10081"
-echo "  User Metrics:   http://${HOST_IP:-localhost}:10091/actuator/prometheus"
-echo "  LMS gRPC:       ${HOST_IP:-localhost}:10082"
-echo "  Gophish Admin:  http://${HOST_IP:-localhost}:3331"
+echo "  Web App:        http://${DISPLAY_HOST:-localhost}:3000"
+echo "  Gophish Phish:  http://${DISPLAY_HOST:-localhost}:3000/landing"
+echo "  User API:       http://${DISPLAY_HOST:-localhost}:10081"
+echo "  User Metrics:   http://${DISPLAY_HOST:-localhost}:10091/actuator/prometheus"
+echo "  LMS gRPC:       ${DISPLAY_HOST:-localhost}:10082"
+echo "  Gophish Admin:  http://${DISPLAY_HOST:-localhost}:3331"
 echo ""
 echo "Check status:  docker compose ps"
 echo "Check logs:    docker compose logs -f <service>   (mysql, minio, nginx, user, lms, web, phish)"
