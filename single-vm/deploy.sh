@@ -129,13 +129,20 @@ done
 
 if [[ "${MINIO_ACCESS_KEY}" == "your_access_key" ]]; then
     echo "Provisioning MinIO access credentials..."
+    MC_IMAGE="minio/mc:RELEASE.2025-02-08T19-14-21Z"
     MC_NET=$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' cyberwise-minio)
-    MC_OUTPUT=$(docker run --rm --network "${MC_NET}" minio/mc:RELEASE.2025-02-08T19-14-21Z sh -c "
-        mc alias set local http://cyberwise-minio:9000 '${MINIO_ROOT_USER}' '${MINIO_ROOT_PASSWORD}' >/dev/null &&
-        mc admin user svcacct add local '${MINIO_ROOT_USER}'
-    " 2>/dev/null || echo "")
 
-    if [[ -n "$MC_OUTPUT" ]]; then
+    MC_OUTPUT=""
+    if docker image inspect "${MC_IMAGE}" &>/dev/null || { echo "Pulling ${MC_IMAGE} (one-time)..."; timeout 120 docker pull "${MC_IMAGE}"; }; then
+        MC_OUTPUT=$(docker run --rm --network "${MC_NET}" "${MC_IMAGE}" sh -c "
+            mc alias set local http://cyberwise-minio:9000 '${MINIO_ROOT_USER}' '${MINIO_ROOT_PASSWORD}' >/dev/null &&
+            mc admin user svcacct add local '${MINIO_ROOT_USER}'
+        " 2>&1) || MC_OUTPUT=""
+    else
+        echo "⚠ Could not pull ${MC_IMAGE} (no registry access?) — skipping to fallback."
+    fi
+
+    if [[ -n "$MC_OUTPUT" ]] && echo "$MC_OUTPUT" | grep -q "Access Key"; then
         MINIO_ACCESS_KEY_VAL=$(echo "$MC_OUTPUT" | grep "Access Key" | awk '{print $3}')
         MINIO_SECRET_KEY_VAL=$(echo "$MC_OUTPUT" | grep "Secret Key" | awk '{print $3}')
         sed -i \
@@ -145,6 +152,7 @@ if [[ "${MINIO_ACCESS_KEY}" == "your_access_key" ]]; then
         echo "✓ MinIO access credentials generated"
     else
         echo "⚠ Could not create a MinIO service account — falling back to root credentials."
+        [[ -n "$MC_OUTPUT" ]] && echo "$MC_OUTPUT"
         sed -i \
             -e "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=${MINIO_ROOT_USER}|" \
             -e "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}|" \
