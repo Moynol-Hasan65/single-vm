@@ -8,6 +8,28 @@ if ! command -v docker &>/dev/null; then
     exit 1
 fi
 
+gen_secret() {
+    if command -v openssl &>/dev/null; then
+        openssl rand -hex 32
+    elif command -v xxd &>/dev/null; then
+        head -c 32 /dev/urandom | xxd -p -c 256
+    else
+        head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
+    fi
+}
+
+gen_alnum() {
+    # head closes the pipe as soon as it has $1 bytes, so tr gets SIGPIPE
+    # (exit 141) — harmless, but pipefail+set -e would otherwise abort
+    # the script on it. Scoped to a subshell so pipefail stays on globally.
+    local len="$1"
+    ( set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$len" )
+}
+
+gen_password() {
+    gen_alnum 10
+}
+
 if [[ ! -f .env ]]; then
     if [[ ! -f .env.example ]]; then
         echo "ERROR: .env.example not found."
@@ -23,23 +45,6 @@ if [[ ! -f .env ]]; then
         rm -f .env
         exit 1
     fi
-
-    gen_secret() {
-        if command -v openssl &>/dev/null; then
-            openssl rand -hex 32
-        elif command -v xxd &>/dev/null; then
-            head -c 32 /dev/urandom | xxd -p -c 256
-        else
-            head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
-        fi
-    }
-
-    gen_password() {
-        # head closes the pipe as soon as it has 10 bytes, so tr gets SIGPIPE
-        # (exit 141) — harmless, but pipefail+set -e would otherwise abort
-        # the script on it. Scoped to a subshell so pipefail stays on globally.
-        ( set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 10 )
-    }
 
     echo "Generating secrets..."
     JWT_SECRET_VAL=$(gen_secret)
@@ -105,6 +110,46 @@ echo "✓ phish/config.json rendered"
 if [[ -n "${DOCKER_HUB_USER:-}" && -n "${DOCKER_HUB_PASS:-}" ]]; then
     echo "Logging into Docker Hub..."
     echo "${DOCKER_HUB_PASS}" | docker login -u "${DOCKER_HUB_USER}" --password-stdin
+fi
+
+echo ""
+echo "Starting database and object storage..."
+docker compose up -d mysql minio
+
+echo "Waiting for MinIO to become healthy..."
+tries=0
+until [[ "$(docker inspect -f '{{.State.Health.Status}}' cyberwise-minio 2>/dev/null)" == "healthy" ]]; do
+    tries=$((tries + 1))
+    if (( tries > 60 )); then
+        echo "ERROR: MinIO did not become healthy in time."
+        exit 1
+    fi
+    sleep 2
+done
+
+if [[ "${MINIO_ACCESS_KEY}" == "your_access_key" ]]; then
+    echo "Provisioning MinIO access credentials..."
+    MC_NET=$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' cyberwise-minio)
+    MC_OUTPUT=$(docker run --rm --network "${MC_NET}" minio/mc:RELEASE.2025-02-08T19-14-21Z sh -c "
+        mc alias set local http://cyberwise-minio:9000 '${MINIO_ROOT_USER}' '${MINIO_ROOT_PASSWORD}' >/dev/null &&
+        mc admin user svcacct add local '${MINIO_ROOT_USER}'
+    " 2>/dev/null || echo "")
+
+    if [[ -n "$MC_OUTPUT" ]]; then
+        MINIO_ACCESS_KEY_VAL=$(echo "$MC_OUTPUT" | grep "Access Key" | awk '{print $3}')
+        MINIO_SECRET_KEY_VAL=$(echo "$MC_OUTPUT" | grep "Secret Key" | awk '{print $3}')
+        sed -i \
+            -e "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY_VAL}|" \
+            -e "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=${MINIO_SECRET_KEY_VAL}|" \
+            .env
+        echo "✓ MinIO access credentials generated"
+    else
+        echo "⚠ Could not create a MinIO service account — falling back to root credentials."
+        sed -i \
+            -e "s|^MINIO_ACCESS_KEY=.*|MINIO_ACCESS_KEY=${MINIO_ROOT_USER}|" \
+            -e "s|^MINIO_SECRET_KEY=.*|MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}|" \
+            .env
+    fi
 fi
 
 echo ""
