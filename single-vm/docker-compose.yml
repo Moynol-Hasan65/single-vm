@@ -52,6 +52,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     ports:
       - "10081:8080"
       - "10091:8090"
@@ -64,6 +66,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     ports:
       - "10082:9090"
 
@@ -72,6 +76,9 @@ services:
     container_name: cyberwise-web
     restart: unless-stopped
     env_file: .env
+    depends_on:
+      minio:
+        condition: service_healthy
 
   phish:
     image: ${PHISH_IMAGE}
