@@ -48,7 +48,6 @@ if [[ ! -f .env ]]; then
 
     echo "Generating secrets..."
     JWT_SECRET_VAL=$(gen_secret)
-    APPLICATION_SECRET_VAL=$(gen_secret)
     LICENSE_SECRET_VAL=$(gen_secret)
     GO_PHISH_TOKEN_VAL=$(gen_secret)
     GOPHISH_WEBHOOK_SECRET_VAL=$(gen_secret)
@@ -62,7 +61,6 @@ if [[ ! -f .env ]]; then
 
     sed -i \
         -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
-        -e "s|^APPLICATION_SECRET=.*|APPLICATION_SECRET=${APPLICATION_SECRET_VAL}|" \
         -e "s|^LICENSE_SECRET=.*|LICENSE_SECRET=${LICENSE_SECRET_VAL}|" \
         -e "s|^GO_PHISH_TOKEN=.*|GO_PHISH_TOKEN=${GO_PHISH_TOKEN_VAL}|" \
         -e "s|^GOPHISH_WEBHOOK_SECRET=.*|GOPHISH_WEBHOOK_SECRET=${GOPHISH_WEBHOOK_SECRET_VAL}|" \
@@ -74,18 +72,17 @@ if [[ ! -f .env ]]; then
         -e "s|^GOPHISH_ADMIN_PASSWORD=.*|GOPHISH_ADMIN_PASSWORD=${GOPHISH_ADMIN_PASSWORD_VAL}|" \
         .env
 
-    # Lands HOST_IP_INPUT into MAIL_REGISTRATION_URL, MAIL_FORGET_PASSWORD_URL,
-    # MAIL_LOGIN_URL, NEXT_PUBLIC_LANDING_PAGE_URL, and LOCAL_URL in one pass —
-    # all share these two placeholders. API_URL intentionally uses a different
-    # placeholder (cyberwise-user) and is untouched by this substitution.
+    # Lands HOST_IP_INPUT into MAIL_FORGET_PASSWORD_URL, MAIL_LOGIN_URL, and
+    # NEXT_PUBLIC_LANDING_PAGE_URL in one pass — all share this placeholder.
+    # API_URL intentionally uses a different placeholder (cyberwise-user)
+    # and is untouched by this substitution.
     sed -i \
         -e "s|192\.168\.1\.100|${HOST_IP_INPUT}|g" \
-        -e "s|192\.168\.1\.y|${HOST_IP_INPUT}|g" \
         .env
 
     SUPER_ADMIN_EMAIL_VAL=$(grep '^SUPER_ADMIN_EMAIL=' .env | cut -d= -f2-)
 
-    echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 5 secrets + 5 passwords generated."
+    echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 4 secrets + 5 passwords generated."
     echo "  Super Admin login:  ${SUPER_ADMIN_EMAIL_VAL} / ${SUPER_ADMIN_PASSWORD_VAL}"
     echo "  Gophish admin login: admin / ${GOPHISH_ADMIN_PASSWORD_VAL}"
     echo "  Review the remaining placeholders in .env before continuing if needed:"
