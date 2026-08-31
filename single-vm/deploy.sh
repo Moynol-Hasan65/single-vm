@@ -167,7 +167,7 @@ DISPLAY_HOST=$(printf '%s' "${NEXT_PUBLIC_LANDING_PAGE_URL:-}" | sed -E 's#^http
 
 echo ""
 echo "=== Deployment started ==="
-echo "  Web App:        http://${DISPLAY_HOST:-localhost}:3000"
+echo "  Web App:        http://${DISPLAY_HOST:-localhost}:3000/auth/login"
 echo ""
 echo "Check status:  docker compose ps"
 echo "Check logs:    docker compose logs -f <service>   (mysql, minio, nginx, user, lms, web, phish)"
