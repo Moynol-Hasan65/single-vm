@@ -137,7 +137,7 @@ if [[ "${MINIO_ACCESS_KEY}" == "your_access_key" ]]; then
         MC_OUTPUT=$(docker run --rm --network "${MC_NET}" "${MC_IMAGE}" sh -c "
             mc alias set local http://cyberwise-minio:9000 '${MINIO_ROOT_USER}' '${MINIO_ROOT_PASSWORD}' >/dev/null &&
             mc admin user svcacct add local '${MINIO_ROOT_USER}'
-        " 2>&1) || MC_OUTPUT=""
+        " 2>&1) || true
     else
         echo "⚠ Could not pull ${MC_IMAGE} (no registry access?) — skipping to fallback."
     fi
