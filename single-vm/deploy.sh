@@ -129,12 +129,12 @@ done
 
 if [[ "${MINIO_ACCESS_KEY}" == "your_access_key" ]]; then
     echo "Provisioning MinIO access credentials..."
-    MC_IMAGE="minio/mc:RELEASE.2025-02-08T19-14-21Z"
+    MC_IMAGE="minio/mc:RELEASE.2025-08-13T08-35-41Z"
     MC_NET=$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' cyberwise-minio)
 
     MC_OUTPUT=""
     if docker image inspect "${MC_IMAGE}" &>/dev/null || { echo "Pulling ${MC_IMAGE} (one-time)..."; timeout 120 docker pull "${MC_IMAGE}"; }; then
-        MC_OUTPUT=$(docker run --rm --network "${MC_NET}" "${MC_IMAGE}" sh -c "
+        MC_OUTPUT=$(docker run --rm --network "${MC_NET}" --entrypoint sh "${MC_IMAGE}" -c "
             mc alias set local http://cyberwise-minio:9000 '${MINIO_ROOT_USER}' '${MINIO_ROOT_PASSWORD}' >/dev/null &&
             mc admin user svcacct add local '${MINIO_ROOT_USER}'
         " 2>&1) || true
