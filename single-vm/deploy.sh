@@ -39,6 +39,13 @@ if [[ ! -f .env ]]; then
     echo "No .env found — running first-time setup."
     cp .env.example .env
 
+    if grep -q 'cyberwise-production-x\.x\.x' .env; then
+        echo "ERROR: .env still has placeholder image tags (x.x.x)."
+        echo "  Edit USER_IMAGE / LMS_IMAGE / WEB_IMAGE / PHISH_IMAGE in .env.example (or .env) to real versions first, then rerun."
+        rm -f .env
+        exit 1
+    fi
+
     read -rp "Enter this VM's IP or domain: " HOST_IP_INPUT
     if [[ -z "$HOST_IP_INPUT" ]]; then
         echo "ERROR: VM IP cannot be empty."
