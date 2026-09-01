@@ -18,9 +18,6 @@ services:
     container_name: cyberwise-minio
     restart: unless-stopped
     env_file: .env
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
