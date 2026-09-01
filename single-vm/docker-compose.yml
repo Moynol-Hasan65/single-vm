@@ -90,8 +90,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-    ports:
-      - "3331:3333"
     volumes:
       - ./phish/config.json:/opt/gophish/config.json:ro
 
