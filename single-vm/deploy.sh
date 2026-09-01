@@ -69,14 +69,14 @@ if [[ ! -f .env ]]; then
     sed -i \
         -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
         -e "s|^LICENSE_SECRET=.*|LICENSE_SECRET=${LICENSE_SECRET_VAL}|" \
-        -e "s|^PHISH_TOKEN=.*|PHISH_TOKEN=${GO_PHISH_TOKEN_VAL}|" \
-        -e "s|^PHISH_WEBHOOK_SECRET=.*|PHISH_WEBHOOK_SECRET=${GOPHISH_WEBHOOK_SECRET_VAL}|" \
+        -e "s|^GO_PHISH_TOKEN=.*|GO_PHISH_TOKEN=${GO_PHISH_TOKEN_VAL}|" \
+        -e "s|^GOPHISH_WEBHOOK_SECRET=.*|GOPHISH_WEBHOOK_SECRET=${GOPHISH_WEBHOOK_SECRET_VAL}|" \
         -e "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD_VAL}|" \
         -e "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
         -e "s|^DATABASE_PASSWORD=.*|DATABASE_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
         -e "s|^MINIO_ROOT_PASSWORD=.*|MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD_VAL}|" \
         -e "s|^SUPER_ADMIN_PASSWORD=.*|SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD_VAL}|" \
-        -e "s|^PHISH_ADMIN_PASSWORD=.*|PHISH_ADMIN_PASSWORD=${GOPHISH_ADMIN_PASSWORD_VAL}|" \
+        -e "s|^GOPHISH_ADMIN_PASSWORD=.*|GOPHISH_ADMIN_PASSWORD=${GOPHISH_ADMIN_PASSWORD_VAL}|" \
         .env
 
     # Lands HOST_IP_INPUT into MAIL_FORGET_PASSWORD_URL, MAIL_LOGIN_URL, and
@@ -91,7 +91,7 @@ if [[ ! -f .env ]]; then
 
     echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 4 secrets + 5 passwords generated."
     echo "  Super Admin login:  ${SUPER_ADMIN_EMAIL_VAL} / ${SUPER_ADMIN_PASSWORD_VAL}"
-    echo "  Phish admin login: admin / ${GOPHISH_ADMIN_PASSWORD_VAL}"
+    echo "  Gophish admin login: admin / ${GOPHISH_ADMIN_PASSWORD_VAL}"
     echo "  Review the remaining placeholders in .env before continuing if needed:"
     echo "  SMTP (MAIL_*) creds."
 fi
