@@ -120,7 +120,7 @@ echo ""
 echo "Starting database and object storage..."
 docker compose up -d mysql minio
 
-./minio-setup.sh
+bash minio-setup.sh
 
 echo ""
 echo "Starting all services..."
