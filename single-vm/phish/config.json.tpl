@@ -12,7 +12,7 @@
         "key_path": "example.key"
     },
     "db_name": "mysql",
-    "db_path": "${MYSQL_USER}:${MYSQL_PASSWORD}@(cyberwise-mysql:3306)/cyberwise_gophish?charset=utf8mb4&parseTime=True&loc=UTC",
+    "db_path": "${MYSQL_USER}:${MYSQL_PASSWORD}@(cyberwise-mysql:3306)/cyberwise_phish?charset=utf8mb4&parseTime=True&loc=UTC",
     "migrations_prefix": "db/db_",
     "contact_address": "${SUPER_ADMIN_EMAIL}",
     "logging": {
