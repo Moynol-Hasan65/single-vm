@@ -81,9 +81,6 @@ services:
     image: ${PHISH_IMAGE}
     container_name: cyberwise-phish
     restart: unless-stopped
-    environment:
-      GOPHISH_INITIAL_ADMIN_API_TOKEN: ${GO_PHISH_TOKEN}
-      GOPHISH_INITIAL_ADMIN_PASSWORD: ${GOPHISH_ADMIN_PASSWORD:-}
     depends_on:
       mysql:
         condition: service_healthy
