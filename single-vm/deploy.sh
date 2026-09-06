@@ -56,7 +56,7 @@ if [[ ! -f .env ]]; then
     echo "Generating secrets..."
     JWT_SECRET_VAL=$(gen_secret)
     LICENSE_SECRET_VAL=$(gen_secret)
-    GOPHISH_WEBHOOK_SECRET_VAL=$(gen_secret)
+    PHISH_WEBHOOK_SECRET_VAL=$(gen_secret)
 
     echo "Generating passwords..."
     MYSQL_ROOT_PASSWORD_VAL=$(gen_password)
@@ -67,7 +67,7 @@ if [[ ! -f .env ]]; then
     sed -i \
         -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
         -e "s|^LICENSE_SECRET=.*|LICENSE_SECRET=${LICENSE_SECRET_VAL}|" \
-        -e "s|^GOPHISH_WEBHOOK_SECRET=.*|GOPHISH_WEBHOOK_SECRET=${GOPHISH_WEBHOOK_SECRET_VAL}|" \
+        -e "s|^PHISH_WEBHOOK_SECRET=.*|PHISH_WEBHOOK_SECRET=${PHISH_WEBHOOK_SECRET_VAL}|" \
         -e "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD_VAL}|" \
         -e "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
         -e "s|^DATABASE_PASSWORD=.*|DATABASE_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
