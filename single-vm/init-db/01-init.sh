@@ -11,6 +11,6 @@ mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<-EOSQL
         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
     GRANT ALL PRIVILEGES ON cyberwise_lms.*     TO '${MYSQL_USER}'@'%';
-    GRANT ALL PRIVILEGES ON cyberwise_gophish.* TO '${MYSQL_USER}'@'%';
+    GRANT ALL PRIVILEGES ON cyberwise_phish.* TO '${MYSQL_USER}'@'%';
     FLUSH PRIVILEGES;
 EOSQL
