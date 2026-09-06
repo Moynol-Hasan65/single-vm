@@ -56,6 +56,7 @@ if [[ ! -f .env ]]; then
     echo "Generating secrets..."
     JWT_SECRET_VAL=$(gen_secret)
     LICENSE_SECRET_VAL=$(gen_secret)
+    PHISH_TOKEN_VAL=$(gen_secret)
     PHISH_WEBHOOK_SECRET_VAL=$(gen_secret)
 
     echo "Generating passwords..."
@@ -67,6 +68,7 @@ if [[ ! -f .env ]]; then
     sed -i \
         -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
         -e "s|^LICENSE_SECRET=.*|LICENSE_SECRET=${LICENSE_SECRET_VAL}|" \
+        -e "s|^PHISH_TOKEN=.*|PHISH_TOKEN=${PHISH_TOKEN_VAL}|" \
         -e "s|^PHISH_WEBHOOK_SECRET=.*|PHISH_WEBHOOK_SECRET=${PHISH_WEBHOOK_SECRET_VAL}|" \
         -e "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD_VAL}|" \
         -e "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
@@ -85,7 +87,7 @@ if [[ ! -f .env ]]; then
 
     SUPER_ADMIN_EMAIL_VAL=$(grep '^SUPER_ADMIN_EMAIL=' .env | cut -d= -f2-)
 
-    echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 3 secrets + 4 passwords generated."
+    echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 4 secrets + 4 passwords generated."
     echo "  Super Admin login:  ${SUPER_ADMIN_EMAIL_VAL} / ${SUPER_ADMIN_PASSWORD_VAL}"
     echo "  Review the remaining placeholders in .env before continuing if needed:"
     echo "  SMTP (MAIL_*) creds."
