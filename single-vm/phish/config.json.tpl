@@ -20,5 +20,5 @@
         "level": "info"
     },
     "user_service_url": "http://cyberwise-user:8080/api/v1/webhook/gophish/campaign-complete",
-    "user_service_secret": "${GOPHISH_WEBHOOK_SECRET}"
+    "user_service_secret": "${PHISH_WEBHOOK_SECRET}"
 }
