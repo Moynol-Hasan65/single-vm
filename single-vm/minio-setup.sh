@@ -22,7 +22,7 @@ done
 
 if [[ "${MINIO_ACCESS_KEY}" == "your_access_key" ]]; then
     echo "Provisioning MinIO access credentials..."
-    MC_IMAGE="minio/mc:RELEASE.2025-08-13T08-35-41Z"
+    MC_IMAGE="quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z"
     MC_NET=$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' cyberwise-minio)
 
     MC_OUTPUT=""
