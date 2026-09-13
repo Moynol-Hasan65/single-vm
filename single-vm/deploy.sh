@@ -1,133 +1,63 @@
-#!/usr/bin/env bash
-# deploy.sh — the whole single-VM deploy: render phish config, bring everything up.
-set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+# Docker images
+USER_IMAGE=polygontechxyz/cyberwise-user:cyberwise-production-x.x.x
+LMS_IMAGE=polygontechxyz/cyberwise-lms:cyberwise-production-x.x.x
+WEB_IMAGE=polygontechxyz/cyberwise-web:cyberwise-production-x.x.x
+PHISH_IMAGE=polygontechxyz/cyberwise-phish:cyberwise-production-x.x.x
 
-if ! command -v docker &>/dev/null; then
-    echo "ERROR: Docker not found. Install it first: https://docs.docker.com/engine/install/"
-    exit 1
-fi
+# MySQL 
+MYSQL_ROOT_PASSWORD=replace_with_a_password
+MYSQL_DATABASE=cyberwise_user
+MYSQL_USER=cyberwise
+MYSQL_PASSWORD=replace_with_a_password
 
-gen_secret() {
-    if command -v openssl &>/dev/null; then
-        openssl rand -hex 32
-    elif command -v xxd &>/dev/null; then
-        head -c 32 /dev/urandom | xxd -p -c 256
-    else
-        head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
-    fi
-}
+# Spring datasource — same DB/user above; DATABASE_HOST(_LMS) is the JDBC URL actually read, quoted for the "&" in the query string.
+DATABASE_USER=cyberwise
+DATABASE_PASSWORD=replace_with_a_password
+DATABASE_HOST="jdbc:mysql://cyberwise-mysql:3306/cyberwise_user?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+DATABASE_HOST_LMS="jdbc:mysql://cyberwise-mysql:3306/cyberwise_lms?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
 
-gen_alnum() {
-    # head closes the pipe as soon as it has $1 bytes, so tr gets SIGPIPE
-    # (exit 141) — harmless, but pipefail+set -e would otherwise abort
-    # the script on it. Scoped to a subshell so pipefail stays on globally.
-    local len="$1"
-    ( set +o pipefail; LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$len" )
-}
+# MinIO — internal endpoint only, no editing needed; deploy.sh provisions MINIO_ACCESS_KEY/MINIO_SECRET_KEY itself.
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=replace_with_a_password
+MINIO_URL=http://cyberwise-minio:9000
+MINIO_PUBLIC_URL=http://cyberwise-minio:9000
+MINIO_ACCESS_KEY=your_access_key
+MINIO_SECRET_KEY=your_secret_key
+MINIO_BUCKET=cyberwise
 
-gen_password() {
-    gen_alnum 10
-}
+# Secrets — deploy.sh generates these on first run (openssl rand -hex 32)
+JWT_SECRET=replace_with_64_char_hex
+LICENSE_SECRET=replace_with_license_secret
 
-if [[ ! -f .env ]]; then
-    if [[ ! -f .env.example ]]; then
-        echo "ERROR: .env.example not found."
-        exit 1
-    fi
+JWT_ACCESS_EXPIRATION=3600000
+JWT_REFRESH_EXPIRATION=86400000
+RESET_PASSWORD_EXPIRATION=3600000
 
-    echo "No .env found — running first-time setup."
-    cp .env.example .env
+# Super admin
+SUPER_ADMIN_EMAIL=sadmin@polygontech.com
+SUPER_ADMIN_NAME="Super Admin"
+SUPER_ADMIN_PASSWORD=replace_with_a_password
 
-    if grep -q 'cyberwise-production-x\.x\.x' .env; then
-        echo "ERROR: .env still has placeholder image tags (x.x.x)."
-        echo "  Edit USER_IMAGE / LMS_IMAGE / WEB_IMAGE / PHISH_IMAGE in .env.example (or .env) to real versions first, then rerun."
-        rm -f .env
-        exit 1
-    fi
+# SMTP
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USER_NAME=your_email@gmail.com
+MAIL_PASSWORD=your_smtp_password
+MAIL_FORGET_PASSWORD_URL="http://192.168.1.100:3000/auth/confirm-password?x="
+MAIL_LOGIN_URL=http://192.168.1.100:3000/auth/login
 
-    read -rp "Enter this VM's IP or domain: " HOST_IP_INPUT
-    if [[ -z "$HOST_IP_INPUT" ]]; then
-        echo "ERROR: VM IP cannot be empty."
-        rm -f .env
-        exit 1
-    fi
+# gRPC (user -> lms) — internal, container-to-container, no editing needed
+GRPC_LMS_END_POINT=static://cyberwise-lms:9090
 
-    echo "Generating secrets..."
-    JWT_SECRET_VAL=$(gen_secret)
-    LICENSE_SECRET_VAL=$(gen_secret)
-    PHISH_WEBHOOK_SECRET_VAL=$(gen_secret)
+# Phish
+PHISH_URL=http://cyberwise-phish:3333/api
+PHISH_WEBHOOK_SECRET=replace_with_64_char_hex
 
-    echo "Generating passwords..."
-    MYSQL_ROOT_PASSWORD_VAL=$(gen_password)
-    MYSQL_PASSWORD_VAL=$(gen_password)
-    MINIO_ROOT_PASSWORD_VAL=$(gen_password)
-    SUPER_ADMIN_PASSWORD_VAL=$(gen_password)
+# App URLs — NEXT_PUBLIC_LANDING_PAGE_URL is browser-facing (VM IP filled in by deploy.sh); API_URL is container-to-container, leave as-is.
+NEXT_PUBLIC_LANDING_PAGE_URL=http://192.168.1.100:3000/landing
+API_URL=http://cyberwise-user:8080/api/v1
+API_PUBLIC_URL=
 
-    sed -i \
-        -e "s|^JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET_VAL}|" \
-        -e "s|^LICENSE_SECRET=.*|LICENSE_SECRET=${LICENSE_SECRET_VAL}|" \
-        -e "s|^PHISH_WEBHOOK_SECRET=.*|PHISH_WEBHOOK_SECRET=${PHISH_WEBHOOK_SECRET_VAL}|" \
-        -e "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD_VAL}|" \
-        -e "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
-        -e "s|^DATABASE_PASSWORD=.*|DATABASE_PASSWORD=${MYSQL_PASSWORD_VAL}|" \
-        -e "s|^MINIO_ROOT_PASSWORD=.*|MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD_VAL}|" \
-        -e "s|^SUPER_ADMIN_PASSWORD=.*|SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD_VAL}|" \
-        .env
-
-    # Lands HOST_IP_INPUT into MAIL_FORGET_PASSWORD_URL, MAIL_LOGIN_URL, and
-    # NEXT_PUBLIC_LANDING_PAGE_URL in one pass — all share this placeholder.
-    # API_URL intentionally uses a different placeholder (cyberwise-user)
-    # and is untouched by this substitution.
-    sed -i \
-        -e "s|192\.168\.1\.100|${HOST_IP_INPUT}|g" \
-        .env
-
-    SUPER_ADMIN_EMAIL_VAL=$(grep '^SUPER_ADMIN_EMAIL=' .env | cut -d= -f2-)
-
-    echo "✓ .env created — VM IP set to ${HOST_IP_INPUT}, 3 secrets + 4 passwords generated."
-    echo "  Super Admin login:  ${SUPER_ADMIN_EMAIL_VAL} / ${SUPER_ADMIN_PASSWORD_VAL}"
-    echo "  Review the remaining placeholders in .env before continuing if needed:"
-    echo "  SMTP (MAIL_*) creds."
-fi
-
-if ! command -v envsubst &>/dev/null; then
-    echo "ERROR: envsubst not found (part of gettext)."
-    echo "  Debian/Ubuntu: sudo apt-get install -y gettext-base"
-    exit 1
-fi
-
-set -a
-# shellcheck disable=SC1091
-source .env
-set +a
-
-echo "Rendering phish/config.json..."
-envsubst < phish/config.json.tpl > phish/config.json
-echo "✓ phish/config.json rendered"
-
-if [[ -n "${DOCKER_HUB_USER:-}" && -n "${DOCKER_HUB_PASS:-}" ]]; then
-    echo "Logging into Docker Hub..."
-    echo "${DOCKER_HUB_PASS}" | docker login -u "${DOCKER_HUB_USER}" --password-stdin
-fi
-
-echo ""
-echo "Starting database and object storage..."
-docker compose up -d mysql minio
-
-bash minio-setup.sh
-
-echo ""
-echo "Starting all services..."
-docker compose up -d
-
-# No standalone HOST_IP var — pull the display IP out of a URL that already
-# has it baked in from the first-run setup above.
-DISPLAY_HOST=$(printf '%s' "${NEXT_PUBLIC_LANDING_PAGE_URL:-}" | sed -E 's#^https?://([^:/]+).*#\1#')
-
-echo ""
-echo "=== Deployment started ==="
-echo "  Web App:        http://${DISPLAY_HOST:-localhost}:3000/auth/login"
-echo ""
-echo "Check status:  docker compose ps"
-echo "Check logs:    docker compose logs -f <service>   (mysql, minio, nginx, user, lms, web, phish)"
+# Logging
+SQL_LOG_LEVEL=OFF
+LOG_LEVEL=INFO
